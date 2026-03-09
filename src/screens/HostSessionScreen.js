@@ -1,9 +1,19 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ActivityIndicator, Alert, Button } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  SafeAreaView,
+  ActivityIndicator,
+  Alert,
+  TouchableOpacity,
+} from 'react-native';
 import * as Location from 'expo-location';
 import QRCode from 'react-native-qrcode-svg';
 import { collection, addDoc } from 'firebase/firestore';
 import { auth, db } from '../config/firebase';
+import { LinearGradient } from 'expo-linear-gradient';
+import colors from '../theme/colors';
 
 export default function HostSessionScreen({ navigation }) {
   const [location, setLocation] = useState(null);
@@ -15,7 +25,6 @@ export default function HostSessionScreen({ navigation }) {
     setSessionId(null);
 
     try {
-      // 1. Get Location Permissions
       let { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert('Permission to access location was denied');
@@ -23,11 +32,9 @@ export default function HostSessionScreen({ navigation }) {
         return;
       }
 
-      // 2. Get Current Location
       let loc = await Location.getCurrentPositionAsync({});
       setLocation(loc.coords);
 
-      // 3. Create Session in Firestore
       const user = auth.currentUser;
       if (user) {
         const docRef = await addDoc(collection(db, 'sessions'), {
@@ -35,14 +42,12 @@ export default function HostSessionScreen({ navigation }) {
           hostLat: loc.coords.latitude,
           hostLng: loc.coords.longitude,
           status: 'waiting',
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
-
-        // 4. Set the generated ID for the QR code
         setSessionId(docRef.id);
       }
     } catch (error) {
-      console.error("Error creating session:", error);
+      console.error('Error creating session:', error);
       Alert.alert('Error', 'Failed to create session');
     } finally {
       setLoading(false);
@@ -50,50 +55,171 @@ export default function HostSessionScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <Text style={styles.title}>Your Study Session</Text>
-      
-      {!sessionId && !loading && (
-        <View style={styles.center}>
-          <Text style={styles.subtitle}>Ready to verify your location with a partner?</Text>
-          <Button title="Start Hosting" onPress={handleStartHosting} />
+    <View style={styles.container}>
+      <LinearGradient
+        colors={[colors.background, colors.surface]}
+        style={StyleSheet.absoluteFillObject}
+      />
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+            <Text style={styles.backBtnText}>←</Text>
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Host Session</Text>
+          <View style={styles.headerSpacer} />
         </View>
-      )}
 
-      {loading && (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color="#FF5A5F" />
-          <Text style={styles.loadingText}>Fetching coordinates...</Text>
-        </View>
-      )}
+        {!sessionId && !loading && (
+          <View style={styles.center}>
+            <Text style={styles.emoji}>📍</Text>
+            <Text style={styles.title}>Ready to verify?</Text>
+            <Text style={styles.subtitle}>
+              Share your location with a study partner to verify your session together.
+            </Text>
+            <TouchableOpacity onPress={handleStartHosting} style={styles.primaryButton} activeOpacity={0.8}>
+              <LinearGradient
+                colors={[colors.primary, colors.primaryDark]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.primaryButtonGradient}
+              >
+                <Text style={styles.primaryButtonText}>Start Hosting</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        )}
 
-      {sessionId && !loading && (
-        <View style={styles.qrContainer}>
-          <QRCode
-            value={sessionId}
-            size={250}
-            color="black"
-            backgroundColor="white"
-          />
-          <Text style={styles.promptText}>Show this to your study partner to verify your location.</Text>
-          <Text style={styles.sessionIdText}>ID: {sessionId}</Text>
-        </View>
-      )}
+        {loading && (
+          <View style={styles.center}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={styles.loadingText}>Fetching location...</Text>
+          </View>
+        )}
 
-      <View style={{ marginTop: 20 }}>
-        <Button title="Go Back" color="red" onPress={() => navigation.goBack()} />
-      </View>
-    </SafeAreaView>
+        {sessionId && !loading && (
+          <View style={styles.qrSection}>
+            <View style={styles.qrContainer}>
+              <View style={styles.qrInner}>
+                <QRCode
+                  value={sessionId}
+                  size={220}
+                  color={colors.background}
+                  backgroundColor={colors.white}
+                />
+              </View>
+            </View>
+            <Text style={styles.promptText}>
+              Show this QR code to your study partner to verify you're together.
+            </Text>
+            <Text style={styles.sessionIdText}>Session ID: {sessionId.slice(0, 8)}...</Text>
+          </View>
+        )}
+
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Text style={styles.backButtonText}>Go Back</Text>
+        </TouchableOpacity>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff', alignItems: 'center', padding: 20 },
-  center: { justifyContent: 'center', alignItems: 'center', flex: 1 },
-  title: { fontSize: 26, fontWeight: 'bold', marginBottom: 10, marginTop: 40 },
-  subtitle: { fontSize: 16, color: '#666', textAlign: 'center', marginBottom: 20 },
-  qrContainer: { padding: 20, backgroundColor: '#f0f0f0', borderRadius: 20, alignItems: 'center', marginTop: 20 },
-  promptText: { fontSize: 16, textAlign: 'center', marginTop: 20, fontWeight: '500', paddingHorizontal: 10 },
-  sessionIdText: { marginTop: 10, fontSize: 12, color: '#999' },
-  loadingText: { marginTop: 10, fontSize: 16, color: '#666' }
+  container: { flex: 1 },
+  safeArea: { flex: 1 },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+  },
+  backBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  backBtnText: { fontSize: 24, color: colors.text, fontWeight: '600' },
+  headerTitle: { fontSize: 22, fontWeight: '800', color: colors.text },
+  headerSpacer: { width: 44 },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 32,
+  },
+  emoji: { fontSize: 64, marginBottom: 20 },
+  title: { fontSize: 28, fontWeight: '800', color: colors.text, marginBottom: 12 },
+  subtitle: {
+    fontSize: 16,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 32,
+    lineHeight: 24,
+  },
+  primaryButton: {
+    borderRadius: 20,
+    overflow: 'hidden',
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  primaryButtonGradient: {
+    paddingVertical: 18,
+    paddingHorizontal: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  primaryButtonText: { fontSize: 18, fontWeight: '700', color: colors.white },
+  loadingText: { marginTop: 16, fontSize: 16, color: colors.textSecondary },
+  qrSection: {
+    flex: 1,
+    alignItems: 'center',
+    paddingTop: 40,
+  },
+  qrContainer: {
+    backgroundColor: colors.white,
+    padding: 24,
+    borderRadius: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 12,
+  },
+  qrInner: {
+    backgroundColor: colors.white,
+    padding: 8,
+    borderRadius: 12,
+  },
+  promptText: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginTop: 28,
+    color: colors.textSecondary,
+    paddingHorizontal: 24,
+    lineHeight: 24,
+  },
+  sessionIdText: {
+    marginTop: 16,
+    fontSize: 14,
+    color: colors.textMuted,
+  },
+  backButton: {
+    margin: 20,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  backButtonText: {
+    fontSize: 16,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
 });
