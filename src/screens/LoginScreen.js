@@ -51,9 +51,11 @@ export default function LoginScreen({ navigation }) {
         await updateDoc(doc(db, 'users', uid), {
           matches: [],
           liked: [],
+          passed: [],
           swipesRemaining: 5,
           points: 0,
           streak: 0,
+          isPremium: false,
         });
       } catch (e) {
         console.warn('Failed to reset test user:', e.message);
@@ -71,11 +73,16 @@ export default function LoginScreen({ navigation }) {
             uid: userCred.user.uid,
             name: 'Test User',
             major: 'Computer Science',
+            year: 'Junior',
+            courses: ['CS 101', 'MATH 241', 'ENGL 101', 'PHYS 101'],
+            emoji: '👤',
+            avatarUrl: `https://picsum.photos/seed/${userCred.user.uid}/400/500`,
             points: 0,
             streak: 0,
             swipesRemaining: 5,
             matches: [],
             liked: [],
+            passed: [],
             isPremium: false,
             createdAt: new Date().toISOString(),
           });

@@ -7,6 +7,7 @@ import {
   FlatList,
   ActivityIndicator,
   TouchableOpacity,
+  Image,
 } from 'react-native';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../config/firebase';
@@ -49,7 +50,11 @@ export default function MatchesScreen({ navigation }) {
         onPress={() => navigation.navigate('HostSession')}
       >
         <View style={styles.cardContent}>
-          <Text style={styles.cardEmoji}>{item.emoji || '📚'}</Text>
+          {item.avatarUrl ? (
+            <Image source={{ uri: item.avatarUrl }} style={styles.matchAvatar} resizeMode="cover" />
+          ) : (
+            <Text style={styles.cardEmoji}>{item.emoji || '👤'}</Text>
+          )}
           <Text style={styles.cardName}>{item.name}</Text>
           <Text style={styles.cardMajor}>{item.major}</Text>
           <View style={styles.cardActions}>
@@ -135,6 +140,12 @@ const styles = StyleSheet.create({
   },
   cardContent: {
     paddingVertical: 0,
+  },
+  matchAvatar: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    marginBottom: 12,
   },
   cardEmoji: { fontSize: 40, marginBottom: 8 },
   cardName: {

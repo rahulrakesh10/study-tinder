@@ -1,10 +1,10 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth, db } from './src/config/firebase';
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { View, ActivityIndicator, Text, StyleSheet } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -16,16 +16,28 @@ import JoinSessionScreen from './src/screens/JoinSessionScreen';
 import LeaderboardScreen from './src/screens/LeaderboardScreen';
 import MatchesTabScreen from './src/screens/MatchesTabScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
+import PremiumScreen from './src/screens/PremiumScreen';
+import { seedTestUsers } from './src/utils/seedTestUsers';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
+const TEST_MATCHES = [
+  { id: 'test-match-001', name: 'Alex', major: 'Computer Science', emoji: '👩‍💻', avatarUrl: 'https://picsum.photos/seed/match1/400/500' },
+  { id: 'test-match-002', name: 'Jordan', major: 'Data Science', emoji: '👨‍🔬', avatarUrl: 'https://picsum.photos/seed/match2/400/500' },
+  { id: 'test-match-003', name: 'Taylor', major: 'Psychology', emoji: '🧑', avatarUrl: 'https://picsum.photos/seed/match3/400/500' },
+  { id: 'test-match-004', name: 'Morgan', major: 'Economics', emoji: '👩', avatarUrl: 'https://picsum.photos/seed/match4/400/500' },
+  { id: 'test-match-005', name: 'Casey', major: 'Biology', emoji: '👨', avatarUrl: 'https://picsum.photos/seed/match5/400/500' },
+];
+
 const TEST_USER_RESET = {
   matches: [],
   liked: [],
+  passed: [],
   swipesRemaining: 5,
   points: 0,
   streak: 0,
+  isPremium: false,
 };
 
 function MainTabs() {
@@ -94,6 +106,10 @@ export default function App() {
               uid: userCred.user.uid,
               name: 'Test User',
               major: 'Computer Science',
+              year: 'Junior',
+              courses: ['CS 101', 'MATH 241', 'ENGL 101', 'PHYS 101'],
+              emoji: '👤',
+              avatarUrl: `https://picsum.photos/seed/${userCred.user.uid}/400/500`,
               ...TEST_USER_RESET,
               isPremium: false,
               createdAt: new Date().toISOString(),
@@ -140,6 +156,27 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
+  const hasAutoSeeded = useRef(false);
+  useEffect(() => {
+    if (!user || !hasProfile || hasAutoSeeded.current) return;
+    hasAutoSeeded.current = true;
+    const runAutoSeed = async () => {
+      try {
+        await seedTestUsers(50);
+        const docSnap = await getDoc(doc(db, 'users', user.uid));
+        const matches = docSnap.exists() ? (docSnap.data().matches || []) : [];
+        if (matches.length === 0) {
+          await updateDoc(doc(db, 'users', user.uid), {
+            matches: arrayUnion(...TEST_MATCHES),
+          });
+        }
+      } catch (e) {
+        console.warn('Auto-seed failed:', e.message);
+      }
+    };
+    runAutoSeed();
+  }, [user?.uid, hasProfile]);
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -175,6 +212,7 @@ export default function App() {
               <Stack.Screen name="MainTabs" component={MainTabs} />
               <Stack.Screen name="HostSession" component={HostSessionScreen} />
               <Stack.Screen name="JoinSession" component={JoinSessionScreen} />
+              <Stack.Screen name="Premium" component={PremiumScreen} />
             </>
           )}
         </Stack.Navigator>

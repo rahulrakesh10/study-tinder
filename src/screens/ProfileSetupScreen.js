@@ -27,15 +27,27 @@ export default function ProfileSetupScreen({ navigation, onProfileComplete }) {
     try {
       const user = auth.currentUser;
       if (user) {
+        const emojis = ['👤', '👩', '👨', '🧑', '👩‍💻', '👨‍🔬', '👩‍🎓', '👨‍🎓'];
+        const emoji = emojis[Math.floor(Math.random() * emojis.length)];
+        const avatarUrl = `https://picsum.photos/seed/${user.uid}/400/500`;
+        const years = ['Freshman', 'Sophomore', 'Junior', 'Senior'];
+        const coursesPool = ['CS 101', 'MATH 241', 'ENGL 101', 'HIST 101', 'PSYC 101', 'ECON 101'];
+        const year = years[Math.floor(Math.random() * years.length)];
+        const courses = coursesPool.sort(() => Math.random() - 0.5).slice(0, 4);
         await setDoc(doc(db, 'users', user.uid), {
           uid: user.uid,
           name: name.trim(),
           major: major.trim(),
+          year,
+          courses,
+          emoji,
+          avatarUrl,
           points: 0,
           streak: 0,
           swipesRemaining: 5,
           matches: [],
           liked: [],
+          passed: [],
           isPremium: false,
           createdAt: new Date().toISOString(),
         });

@@ -10,15 +10,14 @@ import {
   ScrollView,
 } from 'react-native';
 import { signOut } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { auth, db } from '../config/firebase';
 import { LinearGradient } from 'expo-linear-gradient';
 import colors from '../theme/colors';
 
-export default function SettingsScreen() {
+export default function SettingsScreen({ navigation }) {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
-
   useEffect(() => {
     fetchProfile();
   }, []);
@@ -38,6 +37,46 @@ export default function SettingsScreen() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const TEST_MATCHES = [
+    { id: 'test-match-001', name: 'Alex', major: 'Computer Science', emoji: '👩‍💻', avatarUrl: 'https://picsum.photos/seed/match1/400/500' },
+    { id: 'test-match-002', name: 'Jordan', major: 'Data Science', emoji: '👨‍🔬', avatarUrl: 'https://picsum.photos/seed/match2/400/500' },
+    { id: 'test-match-003', name: 'Taylor', major: 'Psychology', emoji: '🧑', avatarUrl: 'https://picsum.photos/seed/match3/400/500' },
+    { id: 'test-match-004', name: 'Morgan', major: 'Economics', emoji: '👩', avatarUrl: 'https://picsum.photos/seed/match4/400/500' },
+    { id: 'test-match-005', name: 'Casey', major: 'Biology', emoji: '👨', avatarUrl: 'https://picsum.photos/seed/match5/400/500' },
+  ];
+
+  const handleResetTestUser = async () => {
+    const user = auth.currentUser;
+    if (!user) return;
+    Alert.alert(
+      'Reset Test User',
+      'Reset matches, swipes, liked, passed? You\'ll get 5 swipes back.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reset',
+          onPress: async () => {
+            try {
+              await updateDoc(doc(db, 'users', user.uid), {
+                matches: TEST_MATCHES,
+                liked: [],
+                passed: [],
+                swipesRemaining: 5,
+                points: 0,
+                streak: 0,
+                isPremium: false,
+              });
+              await fetchProfile();
+              Alert.alert('Done!', 'Test user reset. Go to Discover to swipe again.');
+            } catch (error) {
+              Alert.alert('Error', error.message);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleLogout = () => {
@@ -88,7 +127,14 @@ export default function SettingsScreen() {
               <View style={styles.avatar}>
                 <Text style={styles.avatarEmoji}>👤</Text>
               </View>
-              <Text style={styles.name}>{profile?.name || 'Unknown'}</Text>
+              <View style={styles.nameRow}>
+                <Text style={styles.name}>{profile?.name || 'Unknown'}</Text>
+                {profile?.isPremium && (
+                  <View style={styles.premiumBadge}>
+                    <Text style={styles.premiumBadgeText}>👑 Premium</Text>
+                  </View>
+                )}
+              </View>
               <Text style={styles.major}>{profile?.major || '—'}</Text>
               <View style={styles.statsRow}>
                 <View style={styles.statItem}>
@@ -105,6 +151,36 @@ export default function SettingsScreen() {
                 </View>
               </View>
             </View>
+          </View>
+
+          {/* Premium upgrade */}
+          {!profile?.isPremium && (
+            <View style={styles.settingsSection}>
+              <Text style={styles.sectionLabel}>Premium</Text>
+              <TouchableOpacity
+                style={[styles.menuItem, styles.premiumMenuItem]}
+                onPress={() => navigation?.navigate('Premium')}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.menuItemIcon}>👑</Text>
+                <Text style={styles.menuItemText}>Upgrade to Premium</Text>
+                <Text style={styles.menuItemArrow}>→</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Testing */}
+          <View style={styles.settingsSection}>
+            <Text style={styles.sectionLabel}>Testing</Text>
+            <TouchableOpacity
+              style={[styles.menuItem, styles.resetItem]}
+              onPress={handleResetTestUser}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.menuItemIcon}>🔄</Text>
+              <Text style={styles.menuItemText}>Reset test user</Text>
+              <Text style={styles.menuItemArrow}>→</Text>
+            </TouchableOpacity>
           </View>
 
           {/* Account section */}
@@ -171,6 +247,14 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   avatarEmoji: { fontSize: 40 },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
   name: {
     fontSize: 22,
     fontWeight: '800',
@@ -199,8 +283,29 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: 2,
   },
+  premiumBadge: {
+    backgroundColor: colors.gold,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  premiumBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#1A1A1A',
+  },
+  premiumMenuItem: {
+    borderWidth: 2,
+    borderColor: colors.gold,
+  },
+  resetItem: {
+    borderWidth: 2,
+    borderColor: colors.textSecondary,
+    marginTop: 12,
+  },
   settingsSection: {
     paddingHorizontal: 20,
+    marginBottom: 24,
   },
   menuItem: {
     flexDirection: 'row',
